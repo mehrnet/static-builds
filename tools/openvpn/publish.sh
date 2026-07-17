@@ -10,6 +10,8 @@
 # tags are the "already built this version" record.
 set -euo pipefail
 
+REPO="mehrnet/static-builds"
+
 UPSTREAM_REPO="OpenVPN/openvpn"
 NAME="openvpn"
 
@@ -17,7 +19,7 @@ latest_tag=$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name)
 version="${latest_tag#v}"
 our_tag="${NAME}-${latest_tag}"
 
-if gh release view "$our_tag" >/dev/null 2>&1; then
+if gh release view "$our_tag" --repo "$REPO" >/dev/null 2>&1; then
   echo "Already published $our_tag -- nothing to do."
   exit 0
 fi
@@ -49,7 +51,7 @@ for arch in amd64 arm64; do
   assets+=("$workdir/$out")
 done
 
-gh release create "$our_tag" \
+gh release create "$our_tag" --repo "$REPO" \
   --title "openvpn $latest_tag" \
   --notes "Static build of [OpenVPN/openvpn](https://github.com/$UPSTREAM_REPO/releases/tag/$latest_tag) ($latest_tag) against musl (Alpine), management interface and plugin loading disabled. linux/amd64 + linux/arm64 only." \
   "${assets[@]}" "$workdir/checksums.txt"

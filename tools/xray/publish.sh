@@ -11,6 +11,8 @@
 # to run on a schedule or by hand with no extra state to track.
 set -euo pipefail
 
+REPO="mehrnet/static-builds"
+
 UPSTREAM_REPO="XTLS/Xray-core"
 NAME="xray"
 
@@ -18,7 +20,7 @@ latest_tag=$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name)
 version="${latest_tag#v}"
 our_tag="${NAME}-${latest_tag}"
 
-if gh release view "$our_tag" >/dev/null 2>&1; then
+if gh release view "$our_tag" --repo "$REPO" >/dev/null 2>&1; then
   echo "Already published $our_tag -- nothing to do."
   exit 0
 fi
@@ -78,7 +80,7 @@ for platform in "${!ASSET_MAP[@]}"; do
   rm -rf "$extract_dir"
 done
 
-gh release create "$our_tag" \
+gh release create "$our_tag" --repo "$REPO" \
   --title "xray $latest_tag" \
   --notes "Re-hosted static build of [XTLS/Xray-core](https://github.com/$UPSTREAM_REPO/releases/tag/$latest_tag) ($latest_tag) -- unpacked from upstream's own official release assets and repackaged under this repo's naming convention. Not rebuilt from source; upstream already ships fully static binaries." \
   "${assets[@]}" checksums.txt

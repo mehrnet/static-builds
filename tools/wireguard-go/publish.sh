@@ -14,6 +14,8 @@
 # repo's own release tags are the "already built this" record.
 set -euo pipefail
 
+REPO="mehrnet/static-builds"
+
 NAME="wireguard-go"
 cd tools/wireguard-go
 
@@ -26,7 +28,7 @@ commit_info=$(go list -m -f '{{.Version}}' golang.zx2c4.com/wireguard)
 short_sha="${commit_info##*-}"
 our_tag="${NAME}-${short_sha}"
 
-if gh release view "$our_tag" >/dev/null 2>&1; then
+if gh release view "$our_tag" --repo "$REPO" >/dev/null 2>&1; then
   echo "Already published $our_tag -- nothing to do."
   # Still worth committing a go.mod/go.sum bump if `go get -u` moved
   # them but this exact commit was already released under a different
@@ -55,7 +57,7 @@ for arch in amd64 arm64; do
   assets+=("$workdir/$out")
 done
 
-gh release create "$our_tag" \
+gh release create "$our_tag" --repo "$REPO" \
   --title "wireguard-go wrapper @ $short_sha" \
   --notes "Static build of this repo's own radar-wg (tools/wireguard-go), vendoring [golang.zx2c4.com/wireguard]($commit_info) at commit $short_sha. Brings a userspace WireGuard tunnel up/down via the UAPI + netlink, no wireguard-tools required. linux/amd64 + linux/arm64 only (netlink is Linux-only)." \
   "${assets[@]}" "$workdir/checksums.txt"
