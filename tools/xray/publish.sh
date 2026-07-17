@@ -36,7 +36,7 @@ declare -A ASSET_MAP=(
   ["darwin_amd64"]="Xray-macos-64.zip"
   ["darwin_arm64"]="Xray-macos-arm64-v8a.zip"
   ["windows_amd64"]="Xray-windows-64.zip"
-  ["windows_arm64"]="Xray-windows-arm64.zip"
+  ["windows_arm64"]="Xray-windows-arm64-v8a.zip"
 )
 
 assets=()
