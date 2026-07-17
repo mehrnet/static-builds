@@ -21,7 +21,18 @@ This file is regenerated automatically after every workflow run
 
 Re-hosted static build of [XTLS/Xray-core](https://github.com/XTLS/Xray-core), unpacked from upstream's own official release assets -- not rebuilt from source.
 
-_Not built yet._
+- **Latest version:** `v26.3.27`
+- **Last updated:** 2026-07-17T10:53:43Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/xray-v26.3.27
+
+| Platform | Download |
+|---|---|
+| darwin/amd64 | [xray_26.3.27_darwin_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.3.27/xray_26.3.27_darwin_amd64.tar.gz) |
+| darwin/arm64 | [xray_26.3.27_darwin_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.3.27/xray_26.3.27_darwin_arm64.tar.gz) |
+| linux/amd64 | [xray_26.3.27_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.3.27/xray_26.3.27_linux_amd64.tar.gz) |
+| linux/arm64 | [xray_26.3.27_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.3.27/xray_26.3.27_linux_arm64.tar.gz) |
+| windows/amd64 | [xray_26.3.27_windows_amd64.zip](https://github.com/mehrnet/static-builds/releases/download/xray-v26.3.27/xray_26.3.27_windows_amd64.zip) |
+| windows/arm64 | [xray_26.3.27_windows_arm64.zip](https://github.com/mehrnet/static-builds/releases/download/xray-v26.3.27/xray_26.3.27_windows_arm64.zip) |
 
 ### openvpn
 
