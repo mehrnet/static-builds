@@ -38,7 +38,14 @@ Re-hosted static build of [XTLS/Xray-core](https://github.com/XTLS/Xray-core), u
 
 Static build of [OpenVPN/openvpn](https://github.com/OpenVPN/openvpn) against musl (Alpine), management interface and plugin loading disabled. linux/amd64 + linux/arm64 only.
 
-_Not built yet._
+- **Latest version:** `v2.7.5`
+- **Last updated:** 2026-07-17T11:04:15Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/openvpn-v2.7.5
+
+| Platform | Download |
+|---|---|
+| linux/amd64 | [openvpn_2.7.5_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/openvpn-v2.7.5/openvpn_2.7.5_linux_amd64.tar.gz) |
+| linux/arm64 | [openvpn_2.7.5_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/openvpn-v2.7.5/openvpn_2.7.5_linux_arm64.tar.gz) |
 
 ### wireguard-go
 
