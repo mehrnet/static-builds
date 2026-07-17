@@ -1,0 +1,3 @@
+*.tar.gz
+*.zip
+/tools/wireguard-go/radar-wg
