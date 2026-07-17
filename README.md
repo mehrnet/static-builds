@@ -51,5 +51,12 @@ Static build of [OpenVPN/openvpn](https://github.com/OpenVPN/openvpn) against mu
 
 This repo's own `radar-wg` wrapper (`tools/wireguard-go`), vendoring upstream [wireguard-go](https://git.zx2c4.com/wireguard-go/) -- brings a userspace WireGuard tunnel up/down via the UAPI + netlink, no `wireguard-tools` required. linux/amd64 + linux/arm64 only.
 
-_Not built yet._
+- **Latest version:** `ecfc5a8d5446`
+- **Last updated:** 2026-07-17T11:56:40Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/wireguard-go-ecfc5a8d5446
+
+| Platform | Download |
+|---|---|
+| radar-wg_ecfc5a8d5446_linux_amd64.tar.gz | [radar-wg_ecfc5a8d5446_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446/radar-wg_ecfc5a8d5446_linux_amd64.tar.gz) |
+| radar-wg_ecfc5a8d5446_linux_arm64.tar.gz | [radar-wg_ecfc5a8d5446_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446/radar-wg_ecfc5a8d5446_linux_arm64.tar.gz) |
 
