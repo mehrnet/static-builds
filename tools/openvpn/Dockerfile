@@ -13,6 +13,7 @@ RUN apk add --no-cache \
     autoconf automake libtool pkgconfig \
     linux-headers \
     openssl-dev \
+    openssl-libs-static \
     lz4-dev \
     lzo-dev \
     libcap-ng-dev libcap-ng-static \
