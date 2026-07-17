@@ -15,6 +15,7 @@ RUN apk add --no-cache \
     openssl-dev \
     openssl-libs-static \
     lz4-dev \
+    lz4-static \
     lzo-dev \
     libcap-ng-dev libcap-ng-static \
     curl tar
