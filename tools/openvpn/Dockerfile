@@ -32,6 +32,15 @@ RUN curl -fsSL "https://github.com/OpenVPN/openvpn/archive/refs/tags/v${OPENVPN_
 # --disable-dco: Data Channel Offload needs libnl-genl-3.0 (kernel-module
 # acceleration) that has nothing to do with this binary's job -- a short
 # probe/test connection, not a high-throughput production tunnel.
+#
+# LDFLAGS="-static" at configure time is what the small AC_CHECK_LIB test
+# programs need to compile/link directly against a real linker flag; it's
+# NOT enough on its own to make the *final* binary static, though, since
+# that link goes through libtool -- libtool intercepts a plain "-static"
+# for its own (different) meaning and silently keeps linking shared libs
+# otherwise. Overriding LDFLAGS again at the `make` invocation itself,
+# to libtool's own "-all-static", is what actually forces the real
+# openvpn binary's final link to be fully static.
 RUN autoreconf -fiv \
  && ./configure \
       --enable-static \
@@ -41,7 +50,7 @@ RUN autoreconf -fiv \
       --disable-debug \
       --disable-dco \
       LDFLAGS="-static" \
- && make -j"$(nproc)" \
+ && make -j"$(nproc)" LDFLAGS="-all-static" \
  && strip src/openvpn/openvpn
 
 FROM scratch AS export
