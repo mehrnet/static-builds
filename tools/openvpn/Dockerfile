@@ -26,6 +26,9 @@ RUN curl -fsSL "https://github.com/OpenVPN/openvpn/archive/refs/tags/v${OPENVPN_
 # bring a tunnel up for a probe/test cycle and tear it down -- the
 # management interface and plugin loading (auth-pam, down-root, ...) are
 # attack surface radar-node's use case has no reason to carry.
+# --disable-dco: Data Channel Offload needs libnl-genl-3.0 (kernel-module
+# acceleration) that has nothing to do with this binary's job -- a short
+# probe/test connection, not a high-throughput production tunnel.
 RUN autoreconf -fiv \
  && ./configure \
       --enable-static \
@@ -33,6 +36,7 @@ RUN autoreconf -fiv \
       --disable-management \
       --disable-plugins \
       --disable-debug \
+      --disable-dco \
       LDFLAGS="-static" \
  && make -j"$(nproc)" \
  && strip src/openvpn/openvpn
