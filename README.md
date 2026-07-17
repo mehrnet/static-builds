@@ -39,7 +39,7 @@ Re-hosted static build of [XTLS/Xray-core](https://github.com/XTLS/Xray-core), u
 Static build of [OpenVPN/openvpn](https://github.com/OpenVPN/openvpn) against musl (Alpine), management interface and plugin loading disabled. linux/amd64 + linux/arm64 only.
 
 - **Latest version:** `v2.7.5`
-- **Last updated:** 2026-07-17T11:04:15Z
+- **Last updated:** 2026-07-17T11:24:03Z
 - **Release:** https://github.com/mehrnet/static-builds/releases/tag/openvpn-v2.7.5
 
 | Platform | Download |
