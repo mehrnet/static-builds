@@ -57,6 +57,6 @@ This repo's own `radar-wg` wrapper (`tools/wireguard-go`), vendoring upstream [w
 
 | Platform | Download |
 |---|---|
-| radar-wg_ecfc5a8d5446_linux_amd64.tar.gz | [radar-wg_ecfc5a8d5446_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446/radar-wg_ecfc5a8d5446_linux_amd64.tar.gz) |
-| radar-wg_ecfc5a8d5446_linux_arm64.tar.gz | [radar-wg_ecfc5a8d5446_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446/radar-wg_ecfc5a8d5446_linux_arm64.tar.gz) |
+| linux/amd64 | [radar-wg_ecfc5a8d5446_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446/radar-wg_ecfc5a8d5446_linux_amd64.tar.gz) |
+| linux/arm64 | [radar-wg_ecfc5a8d5446_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446/radar-wg_ecfc5a8d5446_linux_arm64.tar.gz) |
 
