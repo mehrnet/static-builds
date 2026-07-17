@@ -57,9 +57,13 @@ render_tool() {
     --jq '.assets[] | select(.name | endswith("checksums.txt") | not) | [.name, .url] | @tsv' |
     sort |
     while IFS=$'\t' read -r name url; do
-      # Derive a human platform label from our own <name>_<version>_<os>_<arch>.<ext> convention.
+      # Derive a human platform label from our own <name>_<version>_<os>_<arch>.<ext>
+      # convention -- anchored from the *end* of the filename (not a
+      # leading ${tool}_ prefix), since the binary a tool ships isn't
+      # always named the same as the tool itself (wireguard-go's own
+      # binary is radar-wg, for instance).
       local platform
-      platform=$(echo "$name" | sed -E "s/^${tool}_[^_]+_([a-z]+)_([a-z0-9]+)\..*/\1\/\2/")
+      platform=$(echo "$name" | sed -E 's/^.*_([a-z]+)_([a-z0-9]+)\.(tar\.gz|zip)$/\1\/\2/')
       echo "| ${platform} | [${name}](${url}) |"
     done
   echo
