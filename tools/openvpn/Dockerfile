@@ -15,6 +15,7 @@ RUN apk add --no-cache \
     openssl-dev \
     lz4-dev \
     lzo-dev \
+    libcap-ng-dev libcap-ng-static \
     curl tar
 
 WORKDIR /src
