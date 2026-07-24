@@ -56,3 +56,11 @@ touched. This is deliberate: this binary exists to let a probe test
 reachability *through* a specific tunnel to a specific target, not to
 become the node's general-purpose VPN egress. Point `AllowedIPs` (and
 whatever you probe next) at just the target(s) you actually want to test.
+
+A literal `AllowedIPs = 0.0.0.0/0` (or `::/0`) -- an ordinary full-tunnel
+config, nothing exotic -- is handled the same way `wg-quick(8)` handles
+it: split into two half-address-space routes (`0.0.0.0/1` + `128.0.0.0/1`,
+or `::/1` + `8000::/1`) instead of added as a literal default route. Adding
+the literal route would otherwise collide (`EEXIST`) with the node's own
+already-existing default route; the split covers the identical address
+space without touching it.

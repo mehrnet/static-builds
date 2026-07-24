@@ -27,13 +27,18 @@ type State struct {
 // up brings a userspace WireGuard tunnel online: creates a TUN device,
 // configures it via the UAPI (private key, one peer, allowed IPs),
 // assigns Address to it, adds a route for each AllowedIPs entry scoped
-// to this interface, and brings it up. No route replaces or competes
-// with the node's own default route -- only the CIDRs the caller
-// explicitly listed in allowed_ips get routed through the tunnel, so a
-// misconfigured or malicious peer config can't silently redirect this
-// node's own general traffic. That's a deliberate scoping-down from
-// what a real wg-quick "0.0.0.0/0" tunnel does, matching this being a
-// probe/connectivity test, not a general-purpose VPN client.
+// to this interface, and brings it up. Every route added is scoped to
+// this interface alone (LinkIndex), so it can only ever add reachability
+// through the tunnel, never take any away from the node's own existing
+// default route -- a misconfigured or malicious peer config can't
+// silently redirect this node's own general traffic. AllowedIPs =
+// 0.0.0.0/0 (an extremely common real-world full-tunnel config,
+// nothing exotic) gets the same treatment wg-quick(8) itself gives
+// it: split into 0.0.0.0/1 + 128.0.0.0/1 (see splitDefaultRoute)
+// rather than added as a literal "0.0.0.0/0" route, which the kernel
+// would otherwise reject outright as a duplicate of the node's
+// already-existing default route (EEXIST) instead of adding it
+// alongside.
 func up(cfg *Config, statePath string) error {
 	ifaceName, err := randomIfaceName()
 	if err != nil {
@@ -90,13 +95,15 @@ func up(cfg *Config, statePath string) error {
 		return fmt.Errorf("set %s up: %w", actualName, err)
 	}
 	for _, cidr := range cfg.AllowedIPs {
-		dst, err := netlink.ParseIPNet(cidr)
-		if err != nil {
-			return fmt.Errorf("parse allowed_ips entry %q: %w", cidr, err)
-		}
-		route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: dst}
-		if err := netlink.RouteAdd(route); err != nil {
-			return fmt.Errorf("add route %s via %s: %w", cidr, actualName, err)
+		for _, routeCIDR := range splitDefaultRoute(cidr) {
+			dst, err := netlink.ParseIPNet(routeCIDR)
+			if err != nil {
+				return fmt.Errorf("parse allowed_ips entry %q: %w", cidr, err)
+			}
+			route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: dst}
+			if err := netlink.RouteAdd(route); err != nil {
+				return fmt.Errorf("add route %s via %s: %w", routeCIDR, actualName, err)
+			}
 		}
 	}
 
@@ -161,6 +168,24 @@ func buildUAPIConfig(cfg *Config) (string, error) {
 		fmt.Fprintf(&b, "persistent_keepalive_interval=%d\n", cfg.PersistentKeepalive)
 	}
 	return b.String(), nil
+}
+
+// splitDefaultRoute returns the CIDR(s) to actually add a route for.
+// A literal "0.0.0.0/0" or "::/0" is split into two half-address-space
+// routes (0.0.0.0/1 + 128.0.0.0/1, or ::/1 + 8000::/1) that together
+// cover the exact same space -- same trick wg-quick(8) uses for a
+// full-tunnel AllowedIPs, so a route to a real default-route CIDR
+// doesn't collide (EEXIST) with the node's own pre-existing default
+// route. Anything else passes through unchanged.
+func splitDefaultRoute(cidr string) []string {
+	switch cidr {
+	case "0.0.0.0/0":
+		return []string{"0.0.0.0/1", "128.0.0.0/1"}
+	case "::/0":
+		return []string{"::/1", "8000::/1"}
+	default:
+		return []string{cidr}
+	}
 }
 
 // resolveEndpoint turns a possibly-hostname Endpoint ("host:port" or

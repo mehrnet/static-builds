@@ -2,9 +2,34 @@ package main
 
 import (
 	"net"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestSplitDefaultRouteIPv4(t *testing.T) {
+	got := splitDefaultRoute("0.0.0.0/0")
+	want := []string{"0.0.0.0/1", "128.0.0.0/1"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestSplitDefaultRouteIPv6(t *testing.T) {
+	got := splitDefaultRoute("::/0")
+	want := []string{"::/1", "8000::/1"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestSplitDefaultRoutePassthrough(t *testing.T) {
+	got := splitDefaultRoute("10.0.0.0/24")
+	want := []string{"10.0.0.0/24"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
 
 func TestResolveEndpointLiteralIPv4(t *testing.T) {
 	got, err := resolveEndpoint("203.0.113.5:51820")
