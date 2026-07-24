@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
@@ -161,16 +163,30 @@ func bringUp(cfg *Config) (localAddr string, teardown func(), err error) {
 	}
 
 	teardown = func() {
+		// dev.Close() first, always -- it stops every one of the
+		// device's own background goroutines (packet read/write loop,
+		// handshake timers, periodic MTU checks, ...), which otherwise
+		// keep running against a TUN device that's about to disappear
+		// out from under them. Tearing down netlink state first left
+		// them tripping over a device that had already vanished
+		// ("Failed to load updated MTU of device: ... no such device",
+		// "read /dev/net/tun: not pollable") -- confusing at best.
+		//
+		// It also means the interface itself is typically already gone
+		// by the time this returns: without TUNSETPERSIST (deliberately
+		// never set -- this tunnel has no business outliving this one
+		// process), closing the TUN fd that created it tears the kernel
+		// interface down as a side effect. So the LinkDel below almost
+		// always finds nothing left to delete -- expected, not logged;
+		// it only exists as a defensive fallback for whatever edge case
+		// leaves the interface behind anyway.
+		dev.Close()
 		if err := netlink.RuleDel(rule); err != nil {
 			fmt.Fprintf(os.Stderr, "radar-wg: delete policy rule (table %d): %v\n", table, err)
 		}
-		// Deleting the link also removes every route bound to it (they
-		// don't outlive their interface the way a rule does), so
-		// there's nothing else left to explicitly tear down.
-		if err := netlink.LinkDel(link); err != nil {
+		if err := netlink.LinkDel(link); err != nil && !errors.Is(err, unix.ENODEV) {
 			fmt.Fprintf(os.Stderr, "radar-wg: delete link %s: %v\n", actualName, err)
 		}
-		dev.Close()
 	}
 	return ruleSrc.IP.String(), teardown, nil
 }
