@@ -71,7 +71,32 @@ func probe(tnet *netstack.Net, target string, budget time.Duration) (*Result, er
 	client := &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return tnet.DialContext(ctx, network, addr)
+				host, port, err := net.SplitHostPort(addr)
+				if err != nil {
+					return nil, err
+				}
+				// netstack.CreateNetTUN was given no DNS servers (see
+				// bringUp) -- it has no resolver of its own, so a
+				// hostname target (not unusual: e.g. the connectivity-
+				// check default target this codebase autofills
+				// elsewhere is a hostname) has to be resolved before
+				// tnet ever sees it. Resolved via the node's own normal
+				// DNS, not through the tunnel: the tunnel's job here is
+				// reachability to a specific already-known target, not
+				// necessarily acting as this probe's DNS service too --
+				// most AllowedIPs configs wouldn't even route to
+				// whatever DNS server the peer's network expects.
+				if net.ParseIP(host) == nil {
+					resolved, err := net.DefaultResolver.LookupHost(ctx, host)
+					if err != nil {
+						return nil, fmt.Errorf("resolve %q: %w", host, err)
+					}
+					if len(resolved) == 0 {
+						return nil, fmt.Errorf("no addresses found for %q", host)
+					}
+					host = resolved[0]
+				}
+				return tnet.DialContext(ctx, network, net.JoinHostPort(host, port))
 			},
 		},
 	}
