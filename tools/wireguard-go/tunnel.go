@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -148,7 +149,11 @@ func buildUAPIConfig(cfg *Config) (string, error) {
 		}
 		fmt.Fprintf(&b, "preshared_key=%s\n", pskHex)
 	}
-	fmt.Fprintf(&b, "endpoint=%s\n", cfg.Endpoint)
+	resolvedEndpoint, err := resolveEndpoint(cfg.Endpoint)
+	if err != nil {
+		return "", fmt.Errorf("endpoint: %w", err)
+	}
+	fmt.Fprintf(&b, "endpoint=%s\n", resolvedEndpoint)
 	for _, cidr := range cfg.AllowedIPs {
 		fmt.Fprintf(&b, "allowed_ip=%s\n", cidr)
 	}
@@ -156,6 +161,42 @@ func buildUAPIConfig(cfg *Config) (string, error) {
 		fmt.Fprintf(&b, "persistent_keepalive_interval=%d\n", cfg.PersistentKeepalive)
 	}
 	return b.String(), nil
+}
+
+// resolveEndpoint turns a possibly-hostname Endpoint ("host:port" or
+// "[ipv6]:port") into one with a literal IP, resolving via DNS if
+// needed. The UAPI's own "endpoint=" key (dev.IpcSet) only accepts a
+// literal address -- it has no resolver of its own, unlike wg-quick(8)
+// or `wg setconf`, both of which resolve hostnames client-side before
+// ever touching the kernel/UAPI. A bare wg-quick .conf commonly has a
+// hostname here (that's the whole point of DDNS-backed WireGuard
+// endpoints), so radar-wg has to do that same resolution itself or
+// every such config fails with an opaque "unexpected character" parse
+// error from the UAPI layer instead of a real DNS failure.
+func resolveEndpoint(endpoint string) (string, error) {
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return endpoint, nil
+	}
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return "", fmt.Errorf("resolve endpoint host %q: %w", host, err)
+	}
+	// Prefer an IPv4 result if one exists, matching wg-quick's own
+	// resolver preference -- most WireGuard endpoints are IPv4-only,
+	// and a stray AAAA record on a host that isn't actually reachable
+	// over IPv6 shouldn't win by dumb luck of DNS answer ordering.
+	chosen := ips[0]
+	for _, ip := range ips {
+		if ip4 := ip.To4(); ip4 != nil {
+			chosen = ip4
+			break
+		}
+	}
+	return net.JoinHostPort(chosen.String(), port), nil
 }
 
 // randomIfaceName picks a short, unique-enough name so N probes can
