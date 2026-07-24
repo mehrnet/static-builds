@@ -1,21 +1,16 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/binary"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
-	"golang.zx2c4.com/wireguard/tun"
+	"golang.zx2c4.com/wireguard/tun/netstack"
 )
 
 // stderrLogger is device.NewLogger's own logic, verbatim, except
@@ -41,154 +36,67 @@ func stderrLogger(level int, prepend string) *device.Logger {
 	return logger
 }
 
-// bringUp creates and configures a userspace WireGuard tunnel: a TUN
-// device, the UAPI session (private key, one peer, allowed IPs),
-// Address assigned to the interface, and routes for every AllowedIPs
-// entry in a routing table private to this one invocation (randomID)
-// -- never the main table -- reached only via a matching "from Address
-// lookup Table" policy rule (RuleAdd) scoped to this tunnel's own
-// assigned Address. That's deliberate, and gets two things a plain
-// main-table route can't:
+// bringUp creates and configures a userspace WireGuard tunnel entirely
+// in-process, via wireguard-go's own tun/netstack (a gVisor-backed
+// virtual network stack) rather than a real kernel TUN device. This
+// replaced an earlier design built on a real kernel interface + a
+// private routing table + an ip rule scoping traffic into it -- that
+// approach needed CAP_NET_ADMIN, competed (however carefully) with the
+// node's own kernel networking state, and turned out fragile in
+// practice (DNS-hostname endpoints the UAPI can't resolve itself, a
+// literal 0.0.0.0/0 route colliding with the node's own default route,
+// teardown-ordering races against the device's own background
+// goroutines, ...). None of that exists here: netstack is a private,
+// in-memory network stack with no kernel footprint at all -- no TUN
+// device, no interface name, no routes, no policy rules, no root
+// required. This is the same approach Xray's own WireGuard outbound
+// uses (see golang.zx2c4.com/wireguard/tun/netstack), not something
+// bespoke to radar-wg.
 //
-//  1. Isolation from the node's own default route: nothing needs a
-//     0.0.0.0/0-vs-existing-default-route special case (no split-route
-//     trick) since this table is never consulted for the node's own
-//     general traffic -- only for traffic actually sourced from this
-//     tunnel's own address (which only run()'s own `curl --interface`
-//     invocation uses).
-//  2. Isolation between concurrent tunnels on the same node: two
-//     probes with identical/overlapping AllowedIPs (e.g. both a full
-//     0.0.0.0/0 tunnel) each get their own table + rule, so neither's
-//     route-add can collide (EEXIST) with the other's, and traffic
-//     from one tunnel's address can never get silently routed through
-//     a different, unrelated tunnel the way two same-prefix main-table
-//     routes could.
+// AllowedIPs enforcement is unaffected by any of this: it's the
+// wireguard-go *device* layer (unchanged, same as the kernel-TUN
+// design) that encrypts an outbound packet under whichever peer's
+// AllowedIPs trie covers its destination, and drops it if none do --
+// netstack only changes how packets get into and out of that layer.
 //
-// Returns a teardown func that undoes exactly what this call did, and
-// nothing else -- see run()'s own doc comment for why bring-up, the
-// actual probe, and this teardown all have to happen within one
-// single process's lifetime rather than split across separate CLI
-// invocations.
-func bringUp(cfg *Config) (localAddr string, teardown func(), err error) {
-	ifaceName, err := randomIfaceName()
+// Returns the dialer probe() uses to actually reach target through
+// the tunnel, and a teardown func -- see run()'s own doc comment for
+// why bring-up, the probe, and teardown all happen within one single
+// process's lifetime rather than split across separate invocations.
+func bringUp(cfg *Config) (tnet *netstack.Net, teardown func(), err error) {
+	localAddr, _, _ := strings.Cut(cfg.Address, "/") // Address may carry a CIDR mask (e.g. "10.0.0.2/32"); netstack wants the bare IP
+	addr, err := netip.ParseAddr(localAddr)
 	if err != nil {
-		return "", nil, fmt.Errorf("generate interface name: %w", err)
+		return nil, nil, fmt.Errorf("parse address %q: %w", cfg.Address, err)
 	}
 
 	mtu := cfg.MTU
 	if mtu <= 0 {
 		mtu = device.DefaultMTU
 	}
-	tunDev, err := tun.CreateTUN(ifaceName, mtu)
+	tunDev, tnet, err := netstack.CreateNetTUN([]netip.Addr{addr}, nil, mtu)
 	if err != nil {
-		return "", nil, fmt.Errorf("create tun %s (needs CAP_NET_ADMIN/root): %w", ifaceName, err)
+		return nil, nil, fmt.Errorf("create netstack tun: %w", err)
 	}
-	actualName, _ := tunDev.Name()
 
-	logger := stderrLogger(device.LogLevelError, fmt.Sprintf("(%s) ", actualName))
+	logger := stderrLogger(device.LogLevelError, "")
 	dev := device.NewDevice(tunDev, conn.NewDefaultBind(), logger)
 
 	uapiConfig, err := buildUAPIConfig(cfg)
 	if err != nil {
 		dev.Close()
-		return "", nil, fmt.Errorf("build UAPI config: %w", err)
+		return nil, nil, fmt.Errorf("build UAPI config: %w", err)
 	}
 	if err := dev.IpcSet(uapiConfig); err != nil {
 		dev.Close()
-		return "", nil, fmt.Errorf("configure device: %w", err)
+		return nil, nil, fmt.Errorf("configure device: %w", err)
 	}
 	if err := dev.Up(); err != nil {
 		dev.Close()
-		return "", nil, fmt.Errorf("bring device up: %w", err)
+		return nil, nil, fmt.Errorf("bring device up: %w", err)
 	}
 
-	link, err := netlink.LinkByName(actualName)
-	if err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("find created link %s: %w", actualName, err)
-	}
-	addr, err := netlink.ParseAddr(cfg.Address)
-	if err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("parse address %q: %w", cfg.Address, err)
-	}
-	if err := netlink.AddrAdd(link, addr); err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("assign address %s to %s: %w", cfg.Address, actualName, err)
-	}
-	if err := netlink.LinkSetUp(link); err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("set %s up: %w", actualName, err)
-	}
-
-	table, err := randomID(10000, 1<<28)
-	if err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("generate routing table id: %w", err)
-	}
-	for _, cidr := range cfg.AllowedIPs {
-		dst, err := netlink.ParseIPNet(cidr)
-		if err != nil {
-			dev.Close()
-			return "", nil, fmt.Errorf("parse allowed_ips entry %q: %w", cidr, err)
-		}
-		route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: dst, Table: table}
-		if err := netlink.RouteAdd(route); err != nil {
-			dev.Close()
-			return "", nil, fmt.Errorf("add route %s via %s (table %d): %w", cidr, actualName, table, err)
-		}
-	}
-
-	// Below "local" (0) and well clear of "main" (32766)/"default"
-	// (32767) so this rule is always consulted before the node's
-	// normal routing, for the one specific source address it matches.
-	priority, err := randomID(10000, 20000)
-	if err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("generate rule priority: %w", err)
-	}
-	// Always a single host (/32 or /128), regardless of whatever mask
-	// Address itself declared (a wg-quick .conf's Address commonly
-	// carries a wider subnet mask than /32, e.g. "10.0.0.2/24") -- this
-	// rule's job is to catch traffic sourced from this one tunnel's own
-	// address specifically, not an entire subnet.
-	ruleSrc := hostOnlyNet(addr.IPNet)
-	rule := netlink.NewRule()
-	rule.Src = ruleSrc
-	rule.Table = table
-	rule.Priority = priority
-	if err := netlink.RuleAdd(rule); err != nil {
-		dev.Close()
-		return "", nil, fmt.Errorf("add policy rule (from %s table %d): %w", ruleSrc, table, err)
-	}
-
-	teardown = func() {
-		// dev.Close() first, always -- it stops every one of the
-		// device's own background goroutines (packet read/write loop,
-		// handshake timers, periodic MTU checks, ...), which otherwise
-		// keep running against a TUN device that's about to disappear
-		// out from under them. Tearing down netlink state first left
-		// them tripping over a device that had already vanished
-		// ("Failed to load updated MTU of device: ... no such device",
-		// "read /dev/net/tun: not pollable") -- confusing at best.
-		//
-		// It also means the interface itself is typically already gone
-		// by the time this returns: without TUNSETPERSIST (deliberately
-		// never set -- this tunnel has no business outliving this one
-		// process), closing the TUN fd that created it tears the kernel
-		// interface down as a side effect. So the LinkDel below almost
-		// always finds nothing left to delete -- expected, not logged;
-		// it only exists as a defensive fallback for whatever edge case
-		// leaves the interface behind anyway.
-		dev.Close()
-		if err := netlink.RuleDel(rule); err != nil {
-			fmt.Fprintf(os.Stderr, "radar-wg: delete policy rule (table %d): %v\n", table, err)
-		}
-		if err := netlink.LinkDel(link); err != nil && !errors.Is(err, unix.ENODEV) {
-			fmt.Fprintf(os.Stderr, "radar-wg: delete link %s: %v\n", actualName, err)
-		}
-	}
-	return ruleSrc.IP.String(), teardown, nil
+	return tnet, dev.Close, nil
 }
 
 func buildUAPIConfig(cfg *Config) (string, error) {
@@ -228,29 +136,6 @@ func buildUAPIConfig(cfg *Config) (string, error) {
 	return b.String(), nil
 }
 
-// hostOnlyNet narrows ipnet down to a single-host network (its IP with
-// a /32 or /128 mask, IPv4 vs IPv6 chosen by which form the IP parses
-// as), discarding whatever wider mask it may have originally carried.
-func hostOnlyNet(ipnet *net.IPNet) *net.IPNet {
-	if ip4 := ipnet.IP.To4(); ip4 != nil {
-		return &net.IPNet{IP: ip4, Mask: net.CIDRMask(32, 32)}
-	}
-	return &net.IPNet{IP: ipnet.IP, Mask: net.CIDRMask(128, 128)}
-}
-
-// randomID returns a random int in [min, max) via crypto/rand, used
-// for both the private routing table id and the policy rule priority
-// `up` generates fresh per invocation -- see its own doc comment for
-// why each invocation needs its own unique pick of both rather than a
-// shared fixed value.
-func randomID(min, max uint32) (int, error) {
-	buf := make([]byte, 4)
-	if _, err := rand.Read(buf); err != nil {
-		return 0, err
-	}
-	return int(min + binary.BigEndian.Uint32(buf)%(max-min)), nil
-}
-
 // resolveEndpoint turns a possibly-hostname Endpoint ("host:port" or
 // "[ipv6]:port") into one with a literal IP, resolving via DNS if
 // needed. The UAPI's own "endpoint=" key (dev.IpcSet) only accepts a
@@ -285,16 +170,4 @@ func resolveEndpoint(endpoint string) (string, error) {
 		}
 	}
 	return net.JoinHostPort(chosen.String(), port), nil
-}
-
-// randomIfaceName picks a short, unique-enough name so N probes can
-// each bring up their own tunnel concurrently without colliding on a
-// shared fixed name like "wg0" -- Linux interface names are capped at
-// 15 bytes, hence the short hex suffix rather than a full random ID.
-func randomIfaceName() (string, error) {
-	buf := make([]byte, 4)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return "rwg" + hex.EncodeToString(buf), nil
 }

@@ -1,8 +1,6 @@
 // radar-wg is a small, self-contained wrapper around the upstream
 // wireguard-go userspace implementation: it brings up a WireGuard
-// tunnel entirely through the UAPI + netlink (no dependency on
-// wireguard-tools' `wg`/`wg-quick` being installed on the host at
-// all), probes a target through it, and tears it back down -- all in
+// tunnel, probes a target through it, and tears it back down -- all in
 // one invocation. See this repo's README for the config format.
 //
 //	radar-wg run --config <path> --target <host:port> --timeout-ms <ms>
@@ -15,10 +13,12 @@
 // way a kernel WireGuard interface would. See run.go's own comment for
 // the fuller reasoning.
 //
-// Must run with CAP_NET_ADMIN (root, in practice) -- creating a TUN
-// device and adding routes/rules all need it. There is no
-// privilege-drop here; if that matters for your deployment, wrap this
-// binary with your own sudo/capsh policy.
+// The tunnel itself is an in-process virtual network stack
+// (golang.zx2c4.com/wireguard/tun/netstack, gVisor-backed), not a real
+// kernel TUN device -- no dependency on wireguard-tools' `wg`/
+// `wg-quick`, no kernel routes or policy rules, and (unlike an earlier
+// design built on a real interface) no CAP_NET_ADMIN/root required at
+// all. See bringUp's own doc comment in tunnel.go.
 package main
 
 import (
