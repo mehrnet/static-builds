@@ -28,6 +28,9 @@ PersistentKeepalive = 25
 	if cfg.Address != "10.0.0.2/32" {
 		t.Errorf("Address = %q", cfg.Address)
 	}
+	if len(cfg.DNS) != 1 || cfg.DNS[0] != "1.1.1.1" {
+		t.Errorf("DNS = %v", cfg.DNS)
+	}
 	if cfg.PeerPublicKey != "cGVlci1wdWJsaWMta2V5LWhlcmU=" {
 		t.Errorf("PeerPublicKey = %q", cfg.PeerPublicKey)
 	}
@@ -108,6 +111,45 @@ AllowedIPs = 0.0.0.0/0
 	}
 	if cfg.Address != "10.0.0.2/32" {
 		t.Errorf("Address = %q, want only the first entry", cfg.Address)
+	}
+}
+
+func TestParseConfigDNSAbsentByDefault(t *testing.T) {
+	conf := `[Interface]
+PrivateKey = aGVsbG8td29ybGQtcHJpdmF0ZS1rZXk=
+Address = 10.0.0.2/32
+
+[Peer]
+PublicKey = cGVlci1wdWJsaWMta2V5LWhlcmU=
+Endpoint = 203.0.113.5:51820
+AllowedIPs = 0.0.0.0/0
+`
+	cfg, err := parseConfig(strings.NewReader(conf))
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if len(cfg.DNS) != 0 {
+		t.Errorf("DNS = %v, want empty when the .conf declares none", cfg.DNS)
+	}
+}
+
+func TestParseConfigDNSMultiple(t *testing.T) {
+	conf := `[Interface]
+PrivateKey = aGVsbG8td29ybGQtcHJpdmF0ZS1rZXk=
+Address = 10.0.0.2/32
+DNS = 1.1.1.1, 8.8.8.8
+
+[Peer]
+PublicKey = cGVlci1wdWJsaWMta2V5LWhlcmU=
+Endpoint = 203.0.113.5:51820
+AllowedIPs = 0.0.0.0/0
+`
+	cfg, err := parseConfig(strings.NewReader(conf))
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if len(cfg.DNS) != 2 || cfg.DNS[0] != "1.1.1.1" || cfg.DNS[1] != "8.8.8.8" {
+		t.Errorf("DNS = %v", cfg.DNS)
 	}
 }
 

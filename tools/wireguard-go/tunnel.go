@@ -74,7 +74,24 @@ func bringUp(cfg *Config) (tnet *netstack.Net, teardown func(), err error) {
 	if mtu <= 0 {
 		mtu = device.DefaultMTU
 	}
-	tunDev, tnet, err := netstack.CreateNetTUN([]netip.Addr{addr}, nil, mtu)
+
+	// Only set if the .conf itself declares a DNS server -- see
+	// run.go's dialer for how this changes hostname resolution from
+	// "via the node's own normal resolver" to "via this server,
+	// through the tunnel", exactly matching what a wg-quick(8) DNS =
+	// line does for a real system (write it to /etc/resolv.conf so all
+	// resolution routes through the tunnel) without radar-wg needing
+	// to touch the node's own resolver config to get there.
+	var dnsAddrs []netip.Addr
+	for _, s := range cfg.DNS {
+		addr, err := netip.ParseAddr(s)
+		if err != nil {
+			return nil, nil, fmt.Errorf("parse DNS entry %q: %w", s, err)
+		}
+		dnsAddrs = append(dnsAddrs, addr)
+	}
+
+	tunDev, tnet, err := netstack.CreateNetTUN([]netip.Addr{addr}, dnsAddrs, mtu)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create netstack tun: %w", err)
 	}

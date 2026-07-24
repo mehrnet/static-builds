@@ -58,20 +58,33 @@ AllowedIPs = 10.0.0.0/24
 PersistentKeepalive = 25
 ```
 
-Only `[Interface]`/`[Peer]` `PrivateKey`/`Address`/`PublicKey`/
+Only `[Interface]`/`[Peer]` `PrivateKey`/`Address`/`DNS`/`PublicKey`/
 `PresharedKey`/`Endpoint`/`AllowedIPs`/`PersistentKeepalive`/
-`ListenPort`/`MTU` are read; anything else (`DNS`, `Table`,
-`PostUp`/`PostDown`, ...) is ignored rather than rejected, since this
-isn't a full `wg-quick` replacement -- just enough of the format to
-configure one tunnel and one peer. Only a single `[Peer]` section is
-supported; a config with more than one is rejected outright rather
-than silently picking one.
+`ListenPort`/`MTU` are read; anything else (`Table`, `PostUp`/`PostDown`,
+...) is ignored rather than rejected, since this isn't a full `wg-quick`
+replacement -- just enough of the format to configure one tunnel and one
+peer. Only a single `[Peer]` section is supported; a config with more
+than one is rejected outright rather than silently picking one.
 
 `AllowedIPs` is enforced the normal WireGuard way, unchanged from a real
 kernel interface: it's the device layer (not `netstack`) that encrypts an
 outbound packet under whichever peer's `AllowedIPs` covers its
 destination, and drops it if none do. A literal `AllowedIPs = 0.0.0.0/0`
 (an ordinary full-tunnel config) works fine and needs no special handling.
+
+`DNS` controls how a hostname `--target` gets resolved:
+
+- **Absent** (most configs): resolved via the node's own normal DNS,
+  *not* through the tunnel -- there's no DNS server to ask through it, and
+  most `AllowedIPs` configs wouldn't even route to whatever DNS server the
+  peer's own network expects anyway.
+- **Present**: resolved via that server, *through* the tunnel -- same as
+  what a real `wg-quick(8)` `DNS =` line does for a whole system (writes
+  it to `/etc/resolv.conf` so all resolution routes through the tunnel),
+  without radar-wg needing to touch the node's own resolver config to get
+  there. Useful for a peer whose network only resolves certain hostnames
+  internally (split-horizon DNS), or where you specifically want DNS
+  resolution itself to be part of what's being tested.
 
 ## Concurrency and isolation
 

@@ -42,7 +42,7 @@ func run(cfg *Config, target string, budget time.Duration) (*Result, error) {
 	}
 	defer teardown()
 
-	return probe(tnet, target, budget)
+	return probe(tnet, len(cfg.DNS) > 0, target, budget)
 }
 
 // probe issues one HTTP GET through the tunnel -- tnet.DialContext
@@ -59,7 +59,7 @@ func run(cfg *Config, target string, budget time.Duration) (*Result, error) {
 // effectively instant (in-memory netstack setup/is teardown, no
 // syscalls to a real kernel interface or routing table), so there's
 // no meaningful setup cost to reserve headroom against.
-func probe(tnet *netstack.Net, target string, budget time.Duration) (*Result, error) {
+func probe(tnet *netstack.Net, hasTunnelDNS bool, target string, budget time.Duration) (*Result, error) {
 	url := target
 	if !strings.Contains(url, "://") {
 		url = "http://" + url
@@ -75,18 +75,26 @@ func probe(tnet *netstack.Net, target string, budget time.Duration) (*Result, er
 				if err != nil {
 					return nil, err
 				}
-				// netstack.CreateNetTUN was given no DNS servers (see
-				// bringUp) -- it has no resolver of its own, so a
-				// hostname target (not unusual: e.g. the connectivity-
-				// check default target this codebase autofills
-				// elsewhere is a hostname) has to be resolved before
-				// tnet ever sees it. Resolved via the node's own normal
-				// DNS, not through the tunnel: the tunnel's job here is
-				// reachability to a specific already-known target, not
-				// necessarily acting as this probe's DNS service too --
-				// most AllowedIPs configs wouldn't even route to
-				// whatever DNS server the peer's network expects.
 				if net.ParseIP(host) == nil {
+					if hasTunnelDNS {
+						// The .conf declared a DNS server (see bringUp)
+						// -- resolve via that, through the tunnel
+						// itself, same as a real wg-quick(8) `DNS =`
+						// line does for a whole system. tnet.DialContext
+						// already does exactly this internally when
+						// given an unresolved hostname, so just hand it
+						// the original addr unchanged.
+						return tnet.DialContext(ctx, network, addr)
+					}
+					// No DNS server configured -- netstack has no
+					// resolver of its own in that case, so a hostname
+					// target (not unusual: e.g. the connectivity-check
+					// default target this codebase autofills elsewhere
+					// is a hostname) has to be resolved before tnet ever
+					// sees it. Resolved via the node's own normal DNS,
+					// not through the tunnel: without an explicit DNS
+					// server to ask, there's no tunnel-routed way to
+					// resolve it at all.
 					resolved, err := net.DefaultResolver.LookupHost(ctx, host)
 					if err != nil {
 						return nil, fmt.Errorf("resolve %q: %w", host, err)

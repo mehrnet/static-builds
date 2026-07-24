@@ -21,9 +21,10 @@ import (
 // worked this way).
 type Config struct {
 	PrivateKey          string
-	Address             string // e.g. "10.0.0.2/32" -- assigned to the tunnel interface
-	ListenPort          int    // 0 = let the kernel pick an ephemeral port
-	MTU                 int    // 0 = device default (1420)
+	Address             string   // e.g. "10.0.0.2/32" -- assigned to the tunnel interface
+	DNS                 []string // optional; see bringUp -- routes hostname resolution through the tunnel instead of the node's own resolver when set
+	ListenPort          int      // 0 = let the kernel pick an ephemeral port
+	MTU                 int      // 0 = device default (1420)
 	PeerPublicKey       string
 	PeerPresharedKey    string
 	Endpoint            string // "host:port"
@@ -85,6 +86,13 @@ func parseConfig(r io.Reader) (*Config, error) {
 				cfg.ListenPort, _ = strconv.Atoi(value)
 			case "mtu":
 				cfg.MTU, _ = strconv.Atoi(value)
+			case "dns":
+				for _, entry := range strings.Split(value, ",") {
+					entry = strings.TrimSpace(entry)
+					if entry != "" {
+						cfg.DNS = append(cfg.DNS, entry)
+					}
+				}
 			}
 		case "peer":
 			switch key {
