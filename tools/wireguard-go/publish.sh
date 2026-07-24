@@ -11,7 +11,14 @@
 # recorded via `go list -m` after `go get -u` pulls the latest.
 #
 # Idempotent the same way the other two tools' publish.sh are: this
-# repo's own release tags are the "already built this" record.
+# repo's own release tags are the "already built this" record. That
+# check is keyed on the vendored upstream commit only, though -- if
+# our own wrapper source (config.go/main.go/tunnel.go) changes without
+# an upstream bump, this script sees the existing "wireguard-go-<sha>"
+# tag and does nothing, so a plain rerun WON'T pick up the change. See
+# the "-r2" tag cut by hand for the wg-quick .conf parser rewrite for
+# the precedent: bump a manual "-rN" suffix on the tag and re-run
+# `gh release create` yourself for that case.
 set -euo pipefail
 
 REPO="mehrnet/static-builds"
