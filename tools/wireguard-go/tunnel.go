@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -14,6 +15,29 @@ import (
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
 )
+
+// stderrLogger is device.NewLogger's own logic, verbatim, except
+// targeting os.Stderr instead of the library's hardcoded os.Stdout.
+// run()'s final result is a single line of JSON on stdout that
+// radar-node's collector parses directly -- any of wireguard-go's own
+// internal log lines landing on that same stream (which
+// device.NewLogger does by design, its own doc comment says exactly
+// that) silently corrupts it, breaking collection even on an
+// otherwise-successful probe. This exists so the device's *diagnostic*
+// output never shares a stream with our *result* output.
+func stderrLogger(level int, prepend string) *device.Logger {
+	logger := &device.Logger{Verbosef: device.DiscardLogf, Errorf: device.DiscardLogf}
+	logf := func(prefix string) func(string, ...any) {
+		return log.New(os.Stderr, prefix+": "+prepend, log.Ldate|log.Ltime).Printf
+	}
+	if level >= device.LogLevelVerbose {
+		logger.Verbosef = logf("DEBUG")
+	}
+	if level >= device.LogLevelError {
+		logger.Errorf = logf("ERROR")
+	}
+	return logger
+}
 
 // bringUp creates and configures a userspace WireGuard tunnel: a TUN
 // device, the UAPI session (private key, one peer, allowed IPs),
@@ -59,7 +83,7 @@ func bringUp(cfg *Config) (localAddr string, teardown func(), err error) {
 	}
 	actualName, _ := tunDev.Name()
 
-	logger := device.NewLogger(device.LogLevelError, fmt.Sprintf("(%s) ", actualName))
+	logger := stderrLogger(device.LogLevelError, fmt.Sprintf("(%s) ", actualName))
 	dev := device.NewDevice(tunDev, conn.NewDefaultBind(), logger)
 
 	uapiConfig, err := buildUAPIConfig(cfg)
