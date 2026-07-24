@@ -12,8 +12,8 @@ adding routes both need it.
 ## Usage
 
 ```sh
-radar-wg up   --config tunnel.json --state /tmp/probe123.state
-# ... run a normal tcp/http/icmp probe against a target inside allowed_ips ...
+radar-wg up   --config tunnel.conf --state /tmp/probe123.state
+# ... run a normal tcp/http/icmp probe against a target inside AllowedIPs ...
 radar-wg down --state /tmp/probe123.state
 ```
 
@@ -22,30 +22,37 @@ itself is a kernel interface, not something this process needs to stay
 running to hold open. `down` is a separate, later invocation that reads
 the interface name back from `--state` and deletes it.
 
-## Config (`tunnel.json`)
+## Config (`tunnel.conf`)
 
-```jsonc
-{
-  "private_key": "<base64, this node's own private key>",
-  "address": "10.0.0.2/32",
-  "peer_public_key": "<base64, the peer's public key>",
-  "peer_preshared_key": "<base64, optional>",
-  "endpoint": "203.0.113.1:51820",
-  "allowed_ips": ["10.0.0.0/24"],
-  "listen_port": 0,
-  "persistent_keepalive": 25,
-  "mtu": 1420
-}
+A normal `wg-quick(8)`-style config -- the exact same `.conf` you'd
+already have from any WireGuard setup, no translation step needed:
+
+```ini
+[Interface]
+PrivateKey = <base64, this node's own private key>
+Address = 10.0.0.2/32
+
+[Peer]
+PublicKey = <base64, the peer's public key>
+PresharedKey = <base64, optional>
+Endpoint = 203.0.113.1:51820
+AllowedIPs = 10.0.0.0/24
+PersistentKeepalive = 25
 ```
 
-Keys are the same base64 encoding any `wg-quick` config or `wg genkey`
-output already uses -- converted to the hex the UAPI wire format actually
-requires internally, not something you need to convert yourself.
+Only `[Interface]`/`[Peer]` `PrivateKey`/`Address`/`PublicKey`/
+`PresharedKey`/`Endpoint`/`AllowedIPs`/`PersistentKeepalive`/
+`ListenPort`/`MTU` are read; anything else (`DNS`, `Table`,
+`PostUp`/`PostDown`, ...) is ignored rather than rejected, since this
+isn't a full `wg-quick` replacement -- just enough of the format to
+configure one tunnel and one peer. Only a single `[Peer]` section is
+supported; a config with more than one is rejected outright rather
+than silently picking one.
 
-`allowed_ips` has **no implicit `0.0.0.0/0`** the way a real VPN client's
+`AllowedIPs` has **no implicit `0.0.0.0/0`** the way a real VPN client's
 config normally would. Only the CIDRs listed get a route added, scoped to
 this tunnel's own interface -- the node's own default route is never
 touched. This is deliberate: this binary exists to let a probe test
 reachability *through* a specific tunnel to a specific target, not to
-become the node's general-purpose VPN egress. Point `allowed_ips` (and
+become the node's general-purpose VPN egress. Point `AllowedIPs` (and
 whatever you probe next) at just the target(s) you actually want to test.

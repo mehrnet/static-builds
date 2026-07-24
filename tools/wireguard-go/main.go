@@ -40,7 +40,7 @@ func main() {
 	switch os.Args[1] {
 	case "up":
 		fs := flag.NewFlagSet("up", flag.ExitOnError)
-		configPath := fs.String("config", "", "path to a JSON tunnel config (see README)")
+		configPath := fs.String("config", "", "path to a wg-quick(8)-style .conf (see README)")
 		statePath := fs.String("state", "", "path to write interface state for a later `down`")
 		_ = fs.Parse(os.Args[2:])
 		if *configPath == "" || *statePath == "" {
