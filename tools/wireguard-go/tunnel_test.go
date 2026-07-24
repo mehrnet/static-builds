@@ -2,32 +2,53 @@ package main
 
 import (
 	"net"
-	"reflect"
 	"strings"
 	"testing"
 )
 
-func TestSplitDefaultRouteIPv4(t *testing.T) {
-	got := splitDefaultRoute("0.0.0.0/0")
-	want := []string{"0.0.0.0/1", "128.0.0.0/1"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+func TestHostOnlyNetIPv4NarrowsWiderMask(t *testing.T) {
+	_, ipnet, err := net.ParseCIDR("10.0.0.2/24")
+	if err != nil {
+		t.Fatalf("ParseCIDR: %v", err)
+	}
+	ipnet.IP = net.ParseIP("10.0.0.2") // ParseCIDR masks IP to the network address; restore the host bits
+	got := hostOnlyNet(ipnet)
+	if got.String() != "10.0.0.2/32" {
+		t.Errorf("got %s, want 10.0.0.2/32", got)
 	}
 }
 
-func TestSplitDefaultRouteIPv6(t *testing.T) {
-	got := splitDefaultRoute("::/0")
-	want := []string{"::/1", "8000::/1"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+func TestHostOnlyNetIPv6(t *testing.T) {
+	ipnet := &net.IPNet{IP: net.ParseIP("fd00::2"), Mask: net.CIDRMask(64, 128)}
+	got := hostOnlyNet(ipnet)
+	if got.String() != "fd00::2/128" {
+		t.Errorf("got %s, want fd00::2/128", got)
 	}
 }
 
-func TestSplitDefaultRoutePassthrough(t *testing.T) {
-	got := splitDefaultRoute("10.0.0.0/24")
-	want := []string{"10.0.0.0/24"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+func TestRandomIDWithinRange(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		got, err := randomID(10000, 20000)
+		if err != nil {
+			t.Fatalf("randomID: %v", err)
+		}
+		if got < 10000 || got >= 20000 {
+			t.Fatalf("randomID returned %d, want in [10000, 20000)", got)
+		}
+	}
+}
+
+func TestRandomIDVaries(t *testing.T) {
+	seen := map[int]bool{}
+	for i := 0; i < 20; i++ {
+		got, err := randomID(0, 1<<28)
+		if err != nil {
+			t.Fatalf("randomID: %v", err)
+		}
+		seen[got] = true
+	}
+	if len(seen) < 15 {
+		t.Errorf("only %d distinct values out of 20 draws -- randomID doesn't look random", len(seen))
 	}
 }
 

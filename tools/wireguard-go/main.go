@@ -1,34 +1,32 @@
 // radar-wg is a small, self-contained wrapper around the upstream
-// wireguard-go userspace implementation: it creates and configures a
-// WireGuard tunnel entirely through the UAPI + netlink, with no
-// dependency on wireguard-tools (`wg`/`wg-quick`) being installed on
-// the host at all. Meant to be driven by radar-node's module system as
-// a prepare/teardown pair around an existing prober (tcp/http/icmp)
-// pointed at a target reachable through the tunnel -- see this repo's
-// README for the module YAML shape.
+// wireguard-go userspace implementation: it brings up a WireGuard
+// tunnel entirely through the UAPI + netlink (no dependency on
+// wireguard-tools' `wg`/`wg-quick` being installed on the host at
+// all), probes a target through it, and tears it back down -- all in
+// one invocation. See this repo's README for the config format.
 //
-// Two subcommands, both short-lived:
+//	radar-wg run --config <path> --target <host:port> --timeout-ms <ms>
 //
-//	radar-wg up   --config <path> --state <path>
-//	radar-wg down --state <path>
-//
-// `up` does the real work and exits immediately once the interface is
-// configured and up -- the tunnel itself is a kernel interface backed
-// by this process's own goroutines running as a detached child (see
-// tunnel.go's own comment on why `up` never calls dev.Close() on its
-// success path). `down` is a separate, later invocation that reads
-// back the interface name `up` wrote to --state and deletes it.
+// Deliberately a single subcommand covering the whole lifecycle, not
+// separate "bring up" / "tear down" calls around an external probe:
+// wireguard-go here is a *userspace* implementation, so the actual
+// WireGuard session (handshake, encrypt/decrypt) is Go goroutines
+// running inside this process -- it doesn't outlive the process the
+// way a kernel WireGuard interface would. See run.go's own comment for
+// the fuller reasoning.
 //
 // Must run with CAP_NET_ADMIN (root, in practice) -- creating a TUN
-// device and adding routes both need it. There is no privilege-drop
-// here; if that matters for your deployment, wrap this binary with
-// your own sudo/capsh policy.
+// device and adding routes/rules all need it. There is no
+// privilege-drop here; if that matters for your deployment, wrap this
+// binary with your own sudo/capsh policy.
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 )
 
 func main() {
@@ -38,34 +36,29 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "up":
-		fs := flag.NewFlagSet("up", flag.ExitOnError)
+	case "run":
+		fs := flag.NewFlagSet("run", flag.ExitOnError)
 		configPath := fs.String("config", "", "path to a wg-quick(8)-style .conf (see README)")
-		statePath := fs.String("state", "", "path to write interface state for a later `down`")
+		target := fs.String("target", "", "host:port to probe reachability of, through the tunnel")
+		timeoutMs := fs.Int("timeout-ms", 5000, "overall timeout budget in milliseconds, for bring-up + probe + teardown combined")
 		_ = fs.Parse(os.Args[2:])
-		if *configPath == "" || *statePath == "" {
-			fmt.Fprintln(os.Stderr, "up requires --config and --state")
+		if *configPath == "" || *target == "" {
+			fmt.Fprintln(os.Stderr, "run requires --config and --target")
 			os.Exit(2)
 		}
 		cfg, err := loadConfig(*configPath)
 		if err != nil {
-			fail("up", err)
+			fail("run", err)
 		}
-		if err := up(cfg, *statePath); err != nil {
-			fail("up", err)
+		result, err := run(cfg, *target, time.Duration(*timeoutMs)*time.Millisecond)
+		if err != nil {
+			fail("run", err)
 		}
-
-	case "down":
-		fs := flag.NewFlagSet("down", flag.ExitOnError)
-		statePath := fs.String("state", "", "path written by a previous `up`")
-		_ = fs.Parse(os.Args[2:])
-		if *statePath == "" {
-			fmt.Fprintln(os.Stderr, "down requires --state")
-			os.Exit(2)
+		out, err := json.Marshal(result)
+		if err != nil {
+			fail("run", err)
 		}
-		if err := down(*statePath); err != nil {
-			fail("down", err)
-		}
+		fmt.Println(string(out))
 
 	case "-h", "--help", "help":
 		usage()
@@ -83,11 +76,10 @@ func fail(subcommand string, err error) {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, `radar-wg -- bring a userspace WireGuard tunnel up/down without wireguard-tools
+	fmt.Fprintln(os.Stderr, `radar-wg -- bring a userspace WireGuard tunnel up, probe through it, and tear it down
 
 Usage:
-  radar-wg up   --config <path> --state <path>
-  radar-wg down --state <path>
+  radar-wg run --config <path> --target <host:port> --timeout-ms <ms>
 
 See https://github.com/mehrnet/static-builds/tree/main/tools/wireguard-go for the config format.`)
 }

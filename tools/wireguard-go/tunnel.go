@@ -2,12 +2,12 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/conn"
@@ -15,34 +15,38 @@ import (
 	"golang.zx2c4.com/wireguard/tun"
 )
 
-// State is what `up` writes and `down` reads back -- the interface name
-// is kernel-assigned-ish (we pick it, but uniquely per invocation, see
-// randomIfaceName) precisely so concurrent probes never collide on one
-// shared name the way a fixed "wg0" would.
-type State struct {
-	Interface string    `json:"interface"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// up brings a userspace WireGuard tunnel online: creates a TUN device,
-// configures it via the UAPI (private key, one peer, allowed IPs),
-// assigns Address to it, adds a route for each AllowedIPs entry scoped
-// to this interface, and brings it up. Every route added is scoped to
-// this interface alone (LinkIndex), so it can only ever add reachability
-// through the tunnel, never take any away from the node's own existing
-// default route -- a misconfigured or malicious peer config can't
-// silently redirect this node's own general traffic. AllowedIPs =
-// 0.0.0.0/0 (an extremely common real-world full-tunnel config,
-// nothing exotic) gets the same treatment wg-quick(8) itself gives
-// it: split into 0.0.0.0/1 + 128.0.0.0/1 (see splitDefaultRoute)
-// rather than added as a literal "0.0.0.0/0" route, which the kernel
-// would otherwise reject outright as a duplicate of the node's
-// already-existing default route (EEXIST) instead of adding it
-// alongside.
-func up(cfg *Config, statePath string) error {
+// bringUp creates and configures a userspace WireGuard tunnel: a TUN
+// device, the UAPI session (private key, one peer, allowed IPs),
+// Address assigned to the interface, and routes for every AllowedIPs
+// entry in a routing table private to this one invocation (randomID)
+// -- never the main table -- reached only via a matching "from Address
+// lookup Table" policy rule (RuleAdd) scoped to this tunnel's own
+// assigned Address. That's deliberate, and gets two things a plain
+// main-table route can't:
+//
+//  1. Isolation from the node's own default route: nothing needs a
+//     0.0.0.0/0-vs-existing-default-route special case (no split-route
+//     trick) since this table is never consulted for the node's own
+//     general traffic -- only for traffic actually sourced from this
+//     tunnel's own address (which only run()'s own `curl --interface`
+//     invocation uses).
+//  2. Isolation between concurrent tunnels on the same node: two
+//     probes with identical/overlapping AllowedIPs (e.g. both a full
+//     0.0.0.0/0 tunnel) each get their own table + rule, so neither's
+//     route-add can collide (EEXIST) with the other's, and traffic
+//     from one tunnel's address can never get silently routed through
+//     a different, unrelated tunnel the way two same-prefix main-table
+//     routes could.
+//
+// Returns a teardown func that undoes exactly what this call did, and
+// nothing else -- see run()'s own doc comment for why bring-up, the
+// actual probe, and this teardown all have to happen within one
+// single process's lifetime rather than split across separate CLI
+// invocations.
+func bringUp(cfg *Config) (localAddr string, teardown func(), err error) {
 	ifaceName, err := randomIfaceName()
 	if err != nil {
-		return fmt.Errorf("generate interface name: %w", err)
+		return "", nil, fmt.Errorf("generate interface name: %w", err)
 	}
 
 	mtu := cfg.MTU
@@ -51,7 +55,7 @@ func up(cfg *Config, statePath string) error {
 	}
 	tunDev, err := tun.CreateTUN(ifaceName, mtu)
 	if err != nil {
-		return fmt.Errorf("create tun %s (needs CAP_NET_ADMIN/root): %w", ifaceName, err)
+		return "", nil, fmt.Errorf("create tun %s (needs CAP_NET_ADMIN/root): %w", ifaceName, err)
 	}
 	actualName, _ := tunDev.Name()
 
@@ -60,77 +64,91 @@ func up(cfg *Config, statePath string) error {
 
 	uapiConfig, err := buildUAPIConfig(cfg)
 	if err != nil {
-		_ = dev.Down()
 		dev.Close()
-		return fmt.Errorf("build UAPI config: %w", err)
+		return "", nil, fmt.Errorf("build UAPI config: %w", err)
 	}
 	if err := dev.IpcSet(uapiConfig); err != nil {
 		dev.Close()
-		return fmt.Errorf("configure device: %w", err)
+		return "", nil, fmt.Errorf("configure device: %w", err)
 	}
 	if err := dev.Up(); err != nil {
 		dev.Close()
-		return fmt.Errorf("bring device up: %w", err)
+		return "", nil, fmt.Errorf("bring device up: %w", err)
 	}
-	// The device itself now runs its own goroutines independent of this
-	// process's lifetime expectations -- deliberately NOT calling
-	// dev.Close() on the success path. `down` is what tears this back
-	// out, by interface name, from a separate invocation of this same
-	// binary (see main.go: up and down are two short-lived CLI calls
-	// wrapping one long-lived kernel interface, not one long-running
-	// process holding it open).
 
 	link, err := netlink.LinkByName(actualName)
 	if err != nil {
-		return fmt.Errorf("find created link %s: %w", actualName, err)
+		dev.Close()
+		return "", nil, fmt.Errorf("find created link %s: %w", actualName, err)
 	}
 	addr, err := netlink.ParseAddr(cfg.Address)
 	if err != nil {
-		return fmt.Errorf("parse address %q: %w", cfg.Address, err)
+		dev.Close()
+		return "", nil, fmt.Errorf("parse address %q: %w", cfg.Address, err)
 	}
 	if err := netlink.AddrAdd(link, addr); err != nil {
-		return fmt.Errorf("assign address %s to %s: %w", cfg.Address, actualName, err)
+		dev.Close()
+		return "", nil, fmt.Errorf("assign address %s to %s: %w", cfg.Address, actualName, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
-		return fmt.Errorf("set %s up: %w", actualName, err)
+		dev.Close()
+		return "", nil, fmt.Errorf("set %s up: %w", actualName, err)
+	}
+
+	table, err := randomID(10000, 1<<28)
+	if err != nil {
+		dev.Close()
+		return "", nil, fmt.Errorf("generate routing table id: %w", err)
 	}
 	for _, cidr := range cfg.AllowedIPs {
-		for _, routeCIDR := range splitDefaultRoute(cidr) {
-			dst, err := netlink.ParseIPNet(routeCIDR)
-			if err != nil {
-				return fmt.Errorf("parse allowed_ips entry %q: %w", cidr, err)
-			}
-			route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: dst}
-			if err := netlink.RouteAdd(route); err != nil {
-				return fmt.Errorf("add route %s via %s: %w", routeCIDR, actualName, err)
-			}
+		dst, err := netlink.ParseIPNet(cidr)
+		if err != nil {
+			dev.Close()
+			return "", nil, fmt.Errorf("parse allowed_ips entry %q: %w", cidr, err)
+		}
+		route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: dst, Table: table}
+		if err := netlink.RouteAdd(route); err != nil {
+			dev.Close()
+			return "", nil, fmt.Errorf("add route %s via %s (table %d): %w", cidr, actualName, table, err)
 		}
 	}
 
-	return writeState(statePath, &State{Interface: actualName, CreatedAt: time.Now().UTC()})
-}
+	// Below "local" (0) and well clear of "main" (32766)/"default"
+	// (32767) so this rule is always consulted before the node's
+	// normal routing, for the one specific source address it matches.
+	priority, err := randomID(10000, 20000)
+	if err != nil {
+		dev.Close()
+		return "", nil, fmt.Errorf("generate rule priority: %w", err)
+	}
+	// Always a single host (/32 or /128), regardless of whatever mask
+	// Address itself declared (a wg-quick .conf's Address commonly
+	// carries a wider subnet mask than /32, e.g. "10.0.0.2/24") -- this
+	// rule's job is to catch traffic sourced from this one tunnel's own
+	// address specifically, not an entire subnet.
+	ruleSrc := hostOnlyNet(addr.IPNet)
+	rule := netlink.NewRule()
+	rule.Src = ruleSrc
+	rule.Table = table
+	rule.Priority = priority
+	if err := netlink.RuleAdd(rule); err != nil {
+		dev.Close()
+		return "", nil, fmt.Errorf("add policy rule (from %s table %d): %w", ruleSrc, table, err)
+	}
 
-// down tears down exactly the interface `up` created -- reads the
-// interface name back from statePath rather than taking it on the
-// command line, so a caller (radar-node's module `teardown:` step)
-// only ever needs to remember one path, the same one `prepare:` passed
-// to `up`.
-func down(statePath string) error {
-	st, err := readState(statePath)
-	if err != nil {
-		return err
+	teardown = func() {
+		if err := netlink.RuleDel(rule); err != nil {
+			fmt.Fprintf(os.Stderr, "radar-wg: delete policy rule (table %d): %v\n", table, err)
+		}
+		// Deleting the link also removes every route bound to it (they
+		// don't outlive their interface the way a rule does), so
+		// there's nothing else left to explicitly tear down.
+		if err := netlink.LinkDel(link); err != nil {
+			fmt.Fprintf(os.Stderr, "radar-wg: delete link %s: %v\n", actualName, err)
+		}
+		dev.Close()
 	}
-	link, err := netlink.LinkByName(st.Interface)
-	if err != nil {
-		// Already gone (e.g. a previous down already ran, or the node
-		// rebooted) -- not an error worth failing a teardown step over.
-		return nil
-	}
-	if err := netlink.LinkDel(link); err != nil {
-		return fmt.Errorf("delete link %s: %w", st.Interface, err)
-	}
-	_ = os.Remove(statePath)
-	return nil
+	return ruleSrc.IP.String(), teardown, nil
 }
 
 func buildUAPIConfig(cfg *Config) (string, error) {
@@ -170,22 +188,27 @@ func buildUAPIConfig(cfg *Config) (string, error) {
 	return b.String(), nil
 }
 
-// splitDefaultRoute returns the CIDR(s) to actually add a route for.
-// A literal "0.0.0.0/0" or "::/0" is split into two half-address-space
-// routes (0.0.0.0/1 + 128.0.0.0/1, or ::/1 + 8000::/1) that together
-// cover the exact same space -- same trick wg-quick(8) uses for a
-// full-tunnel AllowedIPs, so a route to a real default-route CIDR
-// doesn't collide (EEXIST) with the node's own pre-existing default
-// route. Anything else passes through unchanged.
-func splitDefaultRoute(cidr string) []string {
-	switch cidr {
-	case "0.0.0.0/0":
-		return []string{"0.0.0.0/1", "128.0.0.0/1"}
-	case "::/0":
-		return []string{"::/1", "8000::/1"}
-	default:
-		return []string{cidr}
+// hostOnlyNet narrows ipnet down to a single-host network (its IP with
+// a /32 or /128 mask, IPv4 vs IPv6 chosen by which form the IP parses
+// as), discarding whatever wider mask it may have originally carried.
+func hostOnlyNet(ipnet *net.IPNet) *net.IPNet {
+	if ip4 := ipnet.IP.To4(); ip4 != nil {
+		return &net.IPNet{IP: ip4, Mask: net.CIDRMask(32, 32)}
 	}
+	return &net.IPNet{IP: ipnet.IP, Mask: net.CIDRMask(128, 128)}
+}
+
+// randomID returns a random int in [min, max) via crypto/rand, used
+// for both the private routing table id and the policy rule priority
+// `up` generates fresh per invocation -- see its own doc comment for
+// why each invocation needs its own unique pick of both rather than a
+// shared fixed value.
+func randomID(min, max uint32) (int, error) {
+	buf := make([]byte, 4)
+	if _, err := rand.Read(buf); err != nil {
+		return 0, err
+	}
+	return int(min + binary.BigEndian.Uint32(buf)%(max-min)), nil
 }
 
 // resolveEndpoint turns a possibly-hostname Endpoint ("host:port" or
