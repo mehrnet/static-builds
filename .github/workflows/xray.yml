@@ -3,7 +3,12 @@ name: xray
 on:
   schedule:
     - cron: "17 3 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Exact upstream tag to publish (e.g. v26.7.28) -- overrides the normal 'latest non-prerelease' lookup, needed for a prerelease-flagged upstream tag that /releases/latest would otherwise skip. Leave blank for normal behavior."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -17,6 +22,7 @@ jobs:
       - name: Check upstream and publish if new
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          XRAY_TAG: ${{ inputs.tag }}
         run: bash tools/xray/publish.sh
 
       - name: Regenerate README

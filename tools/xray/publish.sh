@@ -16,7 +16,16 @@ REPO="mehrnet/static-builds"
 UPSTREAM_REPO="XTLS/Xray-core"
 NAME="xray"
 
-latest_tag=$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name)
+# XRAY_TAG overrides the normal "latest non-prerelease" lookup --
+# needed because GitHub's own /releases/latest deliberately skips any
+# release upstream has flagged prerelease: true, which XTLS/Xray-core
+# does even for what's functionally its newest stable-enough build
+# (confirmed: v26.7.28 is prerelease:true upstream while v26.3.27,
+# published months earlier, is not). Set XRAY_TAG to publish a
+# specific tag regardless of that flag; leave unset for the normal
+# scheduled/hand-triggered "whatever upstream currently calls latest"
+# behavior.
+latest_tag="${XRAY_TAG:-$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name)}"
 version="${latest_tag#v}"
 our_tag="${NAME}-${latest_tag}"
 
