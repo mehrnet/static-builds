@@ -38,14 +38,14 @@ Re-hosted static build of [XTLS/Xray-core](https://github.com/XTLS/Xray-core), u
 
 Static build of [OpenVPN/openvpn](https://github.com/OpenVPN/openvpn) against musl (Alpine), management interface and plugin loading disabled. linux/amd64 + linux/arm64 only.
 
-- **Latest version:** `v2.7.6`
-- **Last updated:** 2026-07-25T05:51:42Z
-- **Release:** https://github.com/mehrnet/static-builds/releases/tag/openvpn-v2.7.6
+- **Latest version:** `v2.7.7`
+- **Last updated:** 2026-08-18T03:56:08Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/openvpn-v2.7.7
 
 | Platform | Download |
 |---|---|
-| linux/amd64 | [openvpn_2.7.6_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/openvpn-v2.7.6/openvpn_2.7.6_linux_amd64.tar.gz) |
-| linux/arm64 | [openvpn_2.7.6_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/openvpn-v2.7.6/openvpn_2.7.6_linux_arm64.tar.gz) |
+| linux/amd64 | [openvpn_2.7.7_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/openvpn-v2.7.7/openvpn_2.7.7_linux_amd64.tar.gz) |
+| linux/arm64 | [openvpn_2.7.7_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/openvpn-v2.7.7/openvpn_2.7.7_linux_arm64.tar.gz) |
 
 ### wireguard-go
 
