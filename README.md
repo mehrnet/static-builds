@@ -77,5 +77,12 @@ Static build of upstream [amnezia-vpn/amneziawg-go](https://github.com/amnezia-v
 
 Static build of [amnezia-vpn/amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools) against musl (Alpine): the `awg(8)` CLI plus `awg-quick(8)`, which auto-falls back to `amneziawg-go` when the kernel module is absent. linux/amd64 + linux/arm64.
 
-_Not built yet._
+- **Latest version:** `v3.1.20260812`
+- **Last updated:** 2026-09-09T07:48:01Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/amneziawg-tools-v3.1.20260812
+
+| Platform | Download |
+|---|---|
+| linux/amd64 | [amneziawg-tools_3.1.20260812_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/amneziawg-tools-v3.1.20260812/amneziawg-tools_3.1.20260812_linux_amd64.tar.gz) |
+| linux/arm64 | [amneziawg-tools_3.1.20260812_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/amneziawg-tools-v3.1.20260812/amneziawg-tools_3.1.20260812_linux_arm64.tar.gz) |
 
