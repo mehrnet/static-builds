@@ -60,3 +60,22 @@ This repo's own `radar-wg` wrapper (`tools/wireguard-go`), vendoring upstream [w
 | linux/amd64 | [radar-wg_ecfc5a8d5446-r10_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446-r10/radar-wg_ecfc5a8d5446-r10_linux_amd64.tar.gz) |
 | linux/arm64 | [radar-wg_ecfc5a8d5446-r10_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446-r10/radar-wg_ecfc5a8d5446-r10_linux_arm64.tar.gz) |
 
+### amneziawg-go
+
+Static build of upstream [amnezia-vpn/amneziawg-go](https://github.com/amnezia-vpn/amneziawg-go), the userspace AmneziaWG daemon (a wireguard-go fork with DPI-evading obfuscation). CGO-free, fully static, no kernel module required. linux/amd64 + linux/arm64.
+
+- **Latest version:** `v3.1.20260828`
+- **Last updated:** 2026-09-09T07:47:13Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/amneziawg-go-v3.1.20260828
+
+| Platform | Download |
+|---|---|
+| linux/amd64 | [amneziawg-go_3.1.20260828_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/amneziawg-go-v3.1.20260828/amneziawg-go_3.1.20260828_linux_amd64.tar.gz) |
+| linux/arm64 | [amneziawg-go_3.1.20260828_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/amneziawg-go-v3.1.20260828/amneziawg-go_3.1.20260828_linux_arm64.tar.gz) |
+
+### amneziawg-tools
+
+Static build of [amnezia-vpn/amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools) against musl (Alpine): the `awg(8)` CLI plus `awg-quick(8)`, which auto-falls back to `amneziawg-go` when the kernel module is absent. linux/amd64 + linux/arm64.
+
+_Not built yet._
+
