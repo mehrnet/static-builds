@@ -13,8 +13,10 @@ REPO="mehrnet/static-builds"
 UPSTREAM_REPO="amnezia-vpn/amneziawg-tools"
 NAME="amneziawg-tools"
 
-latest_tag=$(git ls-remote --tags --refs --sort=-v:refname \
-  "https://github.com/$UPSTREAM_REPO" | head -1 | sed 's#.*refs/tags/##')
+# Capture ls-remote fully before slicing (piping into head can SIGPIPE-kill
+# git and, under pipefail, fail the script -- see amneziawg-go/publish.sh).
+tags=$(git ls-remote --tags --refs --sort=-v:refname "https://github.com/$UPSTREAM_REPO")
+latest_tag=$(printf '%s\n' "$tags" | sed -n '1s#.*refs/tags/##p')
 if [ -z "$latest_tag" ]; then
   echo "Could not determine latest $UPSTREAM_REPO tag." >&2
   exit 1

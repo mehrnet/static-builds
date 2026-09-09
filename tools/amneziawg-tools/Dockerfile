@@ -21,15 +21,18 @@ RUN curl -fsSL "https://github.com/amnezia-vpn/amneziawg-tools/archive/refs/tags
 # amneziawg-tools vendors its own AmneziaWG-aware linux/wireguard.h under
 # src/uapi/linux/ (it carries the awg junk-packet/header attributes the
 # stock kernel header lacks). The Makefile adds `-I uapi/linux` so the
-# vendored copy wins -- but a system linux/wireguard.h from linux-headers
-# can still get pulled in transitively and clash (conflicting enum
-# redefinition). Dropping the system copy guarantees the vendored,
-# awg-carrying header is the only one in play.
+# vendored copy wins as long as CFLAGS is left alone -- so DO NOT override
+# CFLAGS here (only LDFLAGS). Dropping any system copy is belt-and-braces
+# against a linux-headers wireguard.h getting pulled in and clashing.
 RUN rm -f /usr/include/linux/wireguard.h
 
+# The Makefile's program target is `wg` (a wireguard-tools fork); only
+# `make install` renames it to `awg`. We build the binary and rename it
+# ourselves on export. LDFLAGS=-static gives a fully static musl binary
+# (no libtool here, unlike openvpn, so a plain -static is enough).
 RUN make -C src -j"$(nproc)" LDFLAGS="-static" \
- && strip src/awg
+ && strip src/wg
 
 FROM scratch AS export
-COPY --from=build /src/src/awg /awg
+COPY --from=build /src/src/wg /awg
 COPY --from=build /src/src/wg-quick/linux.bash /awg-quick

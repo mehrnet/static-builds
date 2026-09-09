@@ -20,8 +20,11 @@ REPO="mehrnet/static-builds"
 UPSTREAM_REPO="amnezia-vpn/amneziawg-go"
 NAME="amneziawg-go"
 
-latest_tag=$(git ls-remote --tags --refs --sort=-v:refname \
-  "https://github.com/$UPSTREAM_REPO" | head -1 | sed 's#.*refs/tags/##')
+# Capture ls-remote fully before slicing: piping it straight into `head`
+# lets head close the pipe early and kill git with SIGPIPE, which under
+# `set -o pipefail` fails the whole script (exit 141).
+tags=$(git ls-remote --tags --refs --sort=-v:refname "https://github.com/$UPSTREAM_REPO")
+latest_tag=$(printf '%s\n' "$tags" | sed -n '1s#.*refs/tags/##p')
 if [ -z "$latest_tag" ]; then
   echo "Could not determine latest $UPSTREAM_REPO tag." >&2
   exit 1
