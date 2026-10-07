@@ -51,14 +51,14 @@ Static build of [OpenVPN/openvpn](https://github.com/OpenVPN/openvpn) against mu
 
 This repo's own `radar-wg` wrapper (`tools/wireguard-go`), vendoring upstream [wireguard-go](https://git.zx2c4.com/wireguard-go/) -- brings a userspace WireGuard tunnel up/down via the UAPI + netlink, no `wireguard-tools` required. linux/amd64 + linux/arm64 only.
 
-- **Latest version:** `ecfc5a8d5446-r10`
-- **Last updated:** 2026-07-24T15:22:01Z
-- **Release:** https://github.com/mehrnet/static-builds/releases/tag/wireguard-go-ecfc5a8d5446-r10
+- **Latest version:** `2631ce99a06f`
+- **Last updated:** 2026-09-09T07:50:05Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/wireguard-go-2631ce99a06f
 
 | Platform | Download |
 |---|---|
-| linux/amd64 | [radar-wg_ecfc5a8d5446-r10_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446-r10/radar-wg_ecfc5a8d5446-r10_linux_amd64.tar.gz) |
-| linux/arm64 | [radar-wg_ecfc5a8d5446-r10_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-ecfc5a8d5446-r10/radar-wg_ecfc5a8d5446-r10_linux_arm64.tar.gz) |
+| linux/amd64 | [radar-wg_2631ce99a06f_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-2631ce99a06f/radar-wg_2631ce99a06f_linux_amd64.tar.gz) |
+| linux/arm64 | [radar-wg_2631ce99a06f_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/wireguard-go-2631ce99a06f/radar-wg_2631ce99a06f_linux_arm64.tar.gz) |
 
 ### amneziawg-go
 
