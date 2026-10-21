@@ -25,9 +25,18 @@ NAME="xray"
 # specific tag regardless of that flag; leave unset for the normal
 # scheduled/hand-triggered "whatever upstream currently calls latest"
 # behavior.
+#
+# XRAY_RELEASE_SUFFIX appends a local revision to our release tag (e.g.
+# "-r2") for republishing the same upstream version with additional
+# assets. Asset filenames keep their normal version, so consumers still
+# fetch xray_<version>_<os>_<arch>.<ext>.
 latest_tag="${XRAY_TAG:-$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name)}"
 version="${latest_tag#v}"
-our_tag="${NAME}-${latest_tag}"
+release_suffix="${XRAY_RELEASE_SUFFIX:-}"
+case "$release_suffix" in
+  *[!A-Za-z0-9._-]*) echo "invalid XRAY_RELEASE_SUFFIX: $release_suffix" >&2; exit 1 ;;
+esac
+our_tag="${NAME}-${latest_tag}${release_suffix}"
 
 if gh release view "$our_tag" --repo "$REPO" >/dev/null 2>&1; then
   echo "Already published $our_tag -- nothing to do."
@@ -44,6 +53,7 @@ cd "$workdir"
 declare -A ASSET_MAP=(
   ["linux_amd64"]="Xray-linux-64.zip"
   ["linux_arm64"]="Xray-linux-arm64-v8a.zip"
+  ["linux_arm"]="Xray-linux-arm32-v7a.zip"
   ["darwin_amd64"]="Xray-macos-64.zip"
   ["darwin_arm64"]="Xray-macos-arm64-v8a.zip"
   ["windows_amd64"]="Xray-windows-64.zip"
