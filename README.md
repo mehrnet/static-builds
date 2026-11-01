@@ -21,19 +21,19 @@ This file is regenerated automatically after every workflow run
 
 Re-hosted static build of [XTLS/Xray-core](https://github.com/XTLS/Xray-core), unpacked from upstream's own official release assets -- not rebuilt from source.
 
-- **Latest version:** `v26.10.29`
-- **Last updated:** 2026-10-25T08:55:50Z
-- **Release:** https://github.com/mehrnet/static-builds/releases/tag/xray-v26.10.29
+- **Latest version:** `v26.10.31`
+- **Last updated:** 2026-10-29T09:53:09Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/xray-v26.10.31
 
 | Platform | Download |
 |---|---|
-| darwin/amd64 | [xray_26.10.29_darwin_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_darwin_amd64.tar.gz) |
-| darwin/arm64 | [xray_26.10.29_darwin_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_darwin_arm64.tar.gz) |
-| linux/amd64 | [xray_26.10.29_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_linux_amd64.tar.gz) |
-| linux/arm | [xray_26.10.29_linux_arm.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_linux_arm.tar.gz) |
-| linux/arm64 | [xray_26.10.29_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_linux_arm64.tar.gz) |
-| windows/amd64 | [xray_26.10.29_windows_amd64.zip](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_windows_amd64.zip) |
-| windows/arm64 | [xray_26.10.29_windows_arm64.zip](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.29/xray_26.10.29_windows_arm64.zip) |
+| darwin/amd64 | [xray_26.10.31_darwin_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_darwin_amd64.tar.gz) |
+| darwin/arm64 | [xray_26.10.31_darwin_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_darwin_arm64.tar.gz) |
+| linux/amd64 | [xray_26.10.31_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_linux_amd64.tar.gz) |
+| linux/arm | [xray_26.10.31_linux_arm.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_linux_arm.tar.gz) |
+| linux/arm64 | [xray_26.10.31_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_linux_arm64.tar.gz) |
+| windows/amd64 | [xray_26.10.31_windows_amd64.zip](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_windows_amd64.zip) |
+| windows/arm64 | [xray_26.10.31_windows_arm64.zip](https://github.com/mehrnet/static-builds/releases/download/xray-v26.10.31/xray_26.10.31_windows_arm64.zip) |
 
 ### openvpn
 
