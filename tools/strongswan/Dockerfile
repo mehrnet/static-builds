@@ -10,7 +10,7 @@ ARG STRONGSWAN_VERSION
 
 RUN apk add --no-cache \
     build-base \
-    autoconf automake libtool pkgconf gperf bison \
+    autoconf automake libtool pkgconf gperf bison flex \
     linux-headers \
     openssl-dev \
     curl tar \
