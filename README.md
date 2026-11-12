@@ -104,12 +104,12 @@ Portable accel-ppp build from [accel-ppp/accel-ppp](https://github.com/accel-ppp
 
 Portable monolithic strongSwan build from [strongswan/strongswan](https://github.com/strongswan/strongswan) against musl (Alpine): charon, swanctl, libstrongswan/libcharon/libvici, musl loader and runtime libraries under bin/ and lib/. Host xfrm/netlink kernel support is still required.
 
-- **Latest version:** `android-2.6.3`
-- **Last updated:** 2026-11-12T13:35:04Z
-- **Release:** https://github.com/mehrnet/static-builds/releases/tag/strongswan-android-2.6.3
+- **Latest version:** `6.1.0`
+- **Last updated:** 2026-11-12T14:03:39Z
+- **Release:** https://github.com/mehrnet/static-builds/releases/tag/strongswan-6.1.0
 
 | Platform | Download |
 |---|---|
-| linux/amd64 | [strongswan_android-2.6.3_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/strongswan-android-2.6.3/strongswan_android-2.6.3_linux_amd64.tar.gz) |
-| linux/arm64 | [strongswan_android-2.6.3_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/strongswan-android-2.6.3/strongswan_android-2.6.3_linux_arm64.tar.gz) |
+| linux/amd64 | [strongswan_6.1.0_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/strongswan-6.1.0/strongswan_6.1.0_linux_amd64.tar.gz) |
+| linux/arm64 | [strongswan_6.1.0_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/strongswan-6.1.0/strongswan_6.1.0_linux_arm64.tar.gz) |
 
