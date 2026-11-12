@@ -28,7 +28,8 @@ RUN apk add --no-cache \
     libnl3-dev \
     libucontext-dev \
     curl \
-    tar
+    tar \
+    binutils
 
 WORKDIR /src
 RUN curl -fsSL "https://github.com/accel-ppp/accel-ppp/archive/refs/tags/${ACCEL_PPP_VERSION}.tar.gz" -o accel-ppp.tar.gz \
@@ -62,9 +63,25 @@ case "$arch" in
   *) echo "unsupported arch $arch" >&2; exit 1 ;;
 esac
 cp -L "/lib/$musl" /out/lib/
-ldd /out/bin/accel-pppd.bin /out/bin/accel-cmd.bin /out/lib/accel-ppp/*.so \
-  | awk '/=> \// { print $3 }' | sort -u \
-  | while read -r lib; do cp -L "$lib" /out/lib/; done
+todo="/out/bin/accel-pppd.bin /out/bin/accel-cmd.bin /out/lib/accel-ppp/*.so"
+while [ -n "$todo" ]; do
+  next=""
+  for file in $todo; do
+    for soname in $(readelf -d "$file" 2>/dev/null | sed -n 's/.*NEEDED.*\[\(.*\)\].*/\1/p'); do
+      case "$soname" in
+        libc.musl-*|ld-musl-*) continue ;;
+      esac
+      [ -e "/out/lib/$soname" ] && continue
+      [ -e "/out/lib/accel-ppp/$soname" ] && continue
+      src=$(find /lib /usr/lib -name "$soname" -print -quit 2>/dev/null)
+      if [ -n "$src" ]; then
+        cp -L "$src" "/out/lib/$soname"
+        next="$next /out/lib/$soname"
+      fi
+    done
+  done
+  todo="$next"
+done
 for name in accel-pppd accel-cmd; do
   cat > "/out/bin/$name" <<WRAPPER
 #!/bin/sh
@@ -75,7 +92,7 @@ exec "\$here/../lib/$musl" --library-path "\$here/../lib:\$here/../lib/accel-ppp
 WRAPPER
   chmod +x "/out/bin/$name"
 done
-strip /out/bin/*.bin /out/lib/accel-ppp/*.so || true
+strip /out/bin/*.bin /out/lib/accel-ppp/*.so /out/lib/*.so* || true
 EOF
 
 FROM scratch AS export
