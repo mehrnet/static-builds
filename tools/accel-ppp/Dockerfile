@@ -12,6 +12,7 @@
 #   lib/ld-musl-*.so.1   musl loader/libc
 #   lib/*.so*            runtime dependencies
 #   lib/accel-ppp/*.so   plugins + libtriton
+#   share/accel-ppp/     L2TP/PPP dictionaries
 #
 # The wrapper sets ACCEL_PPP_MODULE_PATH; the loader patch below makes
 # accel-ppp honor that environment variable instead of the compile-time path.
@@ -52,7 +53,8 @@ RUN cmake -S . -B build \
 
 RUN <<'EOF'
 set -eu
-mkdir -p /out/bin /out/lib /out/lib/accel-ppp
+mkdir -p /out/bin /out/lib /out/lib/accel-ppp /out/share/accel-ppp
+cp -a /out-root/opt/sheed-node/share/accel-ppp/. /out/share/accel-ppp/
 cp /out-root/opt/sheed-node/sbin/accel-pppd /out/bin/accel-pppd.bin
 cp /out-root/opt/sheed-node/bin/accel-cmd /out/bin/accel-cmd.bin
 cp /out-root/opt/sheed-node/lib*/accel-ppp/*.so /out/lib/accel-ppp/

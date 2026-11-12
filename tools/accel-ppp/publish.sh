@@ -43,7 +43,7 @@ for arch in amd64 arm64; do
     tools/accel-ppp
 
   out="${NAME}_${version}_linux_${arch}.tar.gz"
-  tar -C "$out_dir" -czf "$workdir/$out" bin lib
+  tar -C "$out_dir" -czf "$workdir/$out" bin lib share
 
   (cd "$workdir" && sha256sum "$out" >> checksums.txt)
   assets+=("$workdir/$out")
@@ -51,7 +51,7 @@ done
 
 gh release create "$our_tag" --repo "$REPO" \
   --title "accel-ppp $latest_tag" \
-  --notes "Portable accel-ppp build from [accel-ppp/accel-ppp](https://github.com/$UPSTREAM_REPO/tree/$latest_tag) ($latest_tag) against musl (Alpine). Ships the daemon, accel-cmd, plugins, libtriton, musl loader and runtime libraries under bin/ and lib/. The wrapper sets ACCEL_PPP_MODULE_PATH; host kernel modules (l2tp_ppp, pppol2tp, ppp_generic, xfrm) are still required for live L2TP sessions." \
+  --notes "Portable accel-ppp build from [accel-ppp/accel-ppp](https://github.com/$UPSTREAM_REPO/tree/$latest_tag) ($latest_tag) against musl (Alpine). Ships the daemon, accel-cmd, plugins, libtriton, dictionaries, musl loader and runtime libraries under bin/, lib/, and share/. The wrapper sets ACCEL_PPP_MODULE_PATH; host kernel modules (l2tp_ppp, pppol2tp, ppp_generic, xfrm) are still required for live L2TP sessions." \
   "${assets[@]}" "$workdir/checksums.txt"
 
 echo "Published $our_tag with ${#assets[@]} assets."
