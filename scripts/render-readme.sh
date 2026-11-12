@@ -16,10 +16,11 @@ declare -A DESCRIPTIONS=(
   ["wireguard-go"]="This repo's own \`radar-wg\` wrapper (\`tools/wireguard-go\`), vendoring upstream [wireguard-go](https://git.zx2c4.com/wireguard-go/) -- brings a userspace WireGuard tunnel up/down via the UAPI + netlink, no \`wireguard-tools\` required. linux/amd64 + linux/arm64 only."
   ["amneziawg-go"]="Static build of upstream [amnezia-vpn/amneziawg-go](https://github.com/amnezia-vpn/amneziawg-go), the userspace AmneziaWG daemon (a wireguard-go fork with DPI-evading obfuscation). CGO-free, fully static, no kernel module required. linux/amd64 + linux/arm64."
   ["amneziawg-tools"]="Static build of [amnezia-vpn/amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools) against musl (Alpine): the \`awg(8)\` CLI plus \`awg-quick(8)\`, which auto-falls back to \`amneziawg-go\` when the kernel module is absent. linux/amd64 + linux/arm64."
+  ["strongswan"]="Portable monolithic strongSwan build from [strongswan/strongswan](https://github.com/strongswan/strongswan) against musl (Alpine): charon, swanctl, libstrongswan/libcharon/libvici, musl loader and runtime libraries under bin/ and lib/. Host xfrm/netlink kernel support is still required."
   ["accel-ppp"]="Portable accel-ppp build from [accel-ppp/accel-ppp](https://github.com/accel-ppp/accel-ppp) against musl (Alpine): daemon, accel-cmd, plugins, libtriton, musl loader and runtime libraries under bin/ and lib/. Host L2TP/PPP/xfrm kernel modules are still required for live sessions."
 )
 # Ordered explicitly (bash associative arrays have no stable order).
-TOOLS=(xray openvpn wireguard-go amneziawg-go amneziawg-tools accel-ppp)
+TOOLS=(xray openvpn wireguard-go amneziawg-go amneziawg-tools accel-ppp strongswan)
 
 all_releases_json=$(gh release list --limit 200 --json tagName,name,createdAt,isDraft,isPrerelease)
 
