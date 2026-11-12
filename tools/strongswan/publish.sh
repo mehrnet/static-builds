@@ -7,8 +7,8 @@ REPO="mehrnet/static-builds"
 UPSTREAM_REPO="strongswan/strongswan"
 NAME="strongswan"
 
-tags=$(git ls-remote --tags --refs --sort=-v:refname "https://github.com/$UPSTREAM_REPO")
-latest_tag=$(printf '%s\n' "$tags" | sed -n '1s#.*refs/tags/##p')
+tags=$(git ls-remote --tags --refs "https://github.com/$UPSTREAM_REPO")
+latest_tag=$(printf '%s\n' "$tags" | sed 's#.*refs/tags/##' | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
 if [ -z "$latest_tag" ]; then
   echo "Could not determine latest $UPSTREAM_REPO tag." >&2
   exit 1
