@@ -26,6 +26,7 @@ RUN apk add --no-cache \
     openssl-dev \
     pcre2-dev \
     libnl3-dev \
+    libucontext-dev \
     curl \
     tar
 
