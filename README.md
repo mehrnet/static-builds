@@ -92,7 +92,7 @@ Static build of [amnezia-vpn/amneziawg-tools](https://github.com/amnezia-vpn/amn
 Portable accel-ppp build from [accel-ppp/accel-ppp](https://github.com/accel-ppp/accel-ppp) against musl (Alpine): daemon, accel-cmd, plugins, libtriton, musl loader and runtime libraries under bin/ and lib/. Host L2TP/PPP/xfrm kernel modules are still required for live sessions.
 
 - **Latest version:** `1.15.0`
-- **Last updated:** 2026-11-12T12:49:41Z
+- **Last updated:** 2026-11-12T13:04:56Z
 - **Release:** https://github.com/mehrnet/static-builds/releases/tag/accel-ppp-1.15.0
 
 | Platform | Download |
