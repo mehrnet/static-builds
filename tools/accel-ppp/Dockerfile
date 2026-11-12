@@ -54,7 +54,7 @@ set -eu
 mkdir -p /out/bin /out/lib /out/lib/accel-ppp
 cp /out-root/opt/sheed-node/sbin/accel-pppd /out/bin/accel-pppd.bin
 cp /out-root/opt/sheed-node/bin/accel-cmd /out/bin/accel-cmd.bin
-cp /out-root/opt/sheed-node/lib/accel-ppp/*.so /out/lib/accel-ppp/
+cp /out-root/opt/sheed-node/lib64/accel-ppp/*.so /out/lib/accel-ppp/
 arch=$(uname -m)
 case "$arch" in
   x86_64) musl=ld-musl-x86_64.so.1 ;;
