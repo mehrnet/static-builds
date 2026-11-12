@@ -87,3 +87,9 @@ Static build of [amnezia-vpn/amneziawg-tools](https://github.com/amnezia-vpn/amn
 | linux/amd64 | [amneziawg-tools_3.1.20260812_linux_amd64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/amneziawg-tools-v3.1.20260812/amneziawg-tools_3.1.20260812_linux_amd64.tar.gz) |
 | linux/arm64 | [amneziawg-tools_3.1.20260812_linux_arm64.tar.gz](https://github.com/mehrnet/static-builds/releases/download/amneziawg-tools-v3.1.20260812/amneziawg-tools_3.1.20260812_linux_arm64.tar.gz) |
 
+### accel-ppp
+
+Portable accel-ppp build from [accel-ppp/accel-ppp](https://github.com/accel-ppp/accel-ppp) against musl (Alpine): daemon, accel-cmd, plugins, libtriton, musl loader and runtime libraries under bin/ and lib/. Host L2TP/PPP/xfrm kernel modules are still required for live sessions.
+
+_Not built yet._
+
